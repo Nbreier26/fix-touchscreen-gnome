@@ -1,8 +1,24 @@
-# 🖥️ Fix Touchscreen Monitor Mapping — GNOME Wayland (Arch Linux)
+# 🖥️ Fix Touchscreen Monitor Mapping — GNOME Wayland
+
+![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793D1?style=flat&logo=arch-linux&logoColor=white)
+![GNOME](https://img.shields.io/badge/GNOME-4A86CF?style=flat&logo=gnome&logoColor=white)
+![Shell Script](https://img.shields.io/badge/Shell_Script-121011?style=flat&logo=gnu-bash&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
 Fix for external touch monitors sending input events to the wrong display on GNOME with Wayland.
 
 > **Tested on:** Arch Linux · GNOME 49.5 · USB-C touch monitor (`wch.cn USB2IIC_CTP_CONTROL`)
+
+---
+
+## Table of Contents
+
+- [The Problem](#the-problem)
+- [Quick Fix (Manual)](#quick-fix-manual)
+- [Automatic Fix (Script)](#automatic-fix-script)
+- [Why doesn't xinput work?](#why-doesnt-xinput-work)
+- [Making It Permanent](#making-it-permanent-without-the-script)
+- [References](#references)
 
 ---
 
@@ -22,7 +38,7 @@ The classic `xinput --map-to-output` command **does not work on Wayland** — th
 cat ~/.config/monitors.xml
 ```
 
-Note the `<vendor>`, `<product>`, and `<serial>` of your external monitor (the one whose connector is **not** `eDP`).
+Note the `<vendor>`, `<product>`, and `<serial>` of your external monitor — the one whose connector is **not** `eDP` (eDP is the internal laptop screen).
 
 ### 2. Find the touchscreen device ID
 
@@ -57,7 +73,7 @@ The script auto-detects the touchscreen and the external monitor, then applies t
 ### Download and run
 
 ```bash
-curl -O https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/fix-touch.sh
+curl -O https://raw.githubusercontent.com/Nbreier26/fix-touchscreen-gnome/main/fix-touch.sh
 chmod +x fix-touch.sh
 bash fix-touch.sh
 ```
@@ -68,7 +84,7 @@ bash fix-touch.sh
 2. Detects the touchscreen via `libinput list-devices`
 3. Identifies the Vendor:Product ID of the touch device
 4. Applies the correct `gsettings` entry to map touch input to the external monitor
-5. (Optional) Creates a `systemd --user` service to apply the mapping automatically on every login
+5. *(Optional)* Creates a `systemd --user` service to apply the mapping automatically on every login
 
 ### Dependencies
 
@@ -95,33 +111,40 @@ org.gnome.desktop.peripherals.touchscreen:/org/gnome/desktop/peripherals/touchsc
 
 ## Making It Permanent (Without the Script)
 
-Create a systemd user service:
+Create a systemd user service file:
 
 ```bash
 mkdir -p ~/.config/systemd/user
+nano ~/.config/systemd/user/fix-touch.service
 ```
 
+Paste the following content, replacing the values with your own device info:
+
 ```ini
-# ~/.config/systemd/user/fix-touch.service
 [Unit]
 Description=Fix touchscreen monitor mapping
 After=graphical-session.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash -c 'gsettings set org.gnome.desktop.peripherals.touchscreen:/org/gnome/desktop/peripherals/touchscreens/32d7:0001/ output "['"'"'RTK'"'"', '"'"'0x1920'"'"', '"'"'demoset-1'"'"']"'
+ExecStart=/bin/bash -c \
+  "gsettings set \
+  org.gnome.desktop.peripherals.touchscreen:/org/gnome/desktop/peripherals/touchscreens/32d7:0001/ \
+  output \"['RTK', '0x1920', 'demoset-1']\""
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
 
 [Install]
 WantedBy=graphical-session.target
 ```
 
+Then enable it:
+
 ```bash
 systemctl --user daemon-reload
 systemctl --user enable --now fix-touch.service
 ```
 
-> Replace `32d7:0001`, `RTK`, `0x1920`, and `demoset-1` with your own device values.
+> Replace `32d7:0001`, `RTK`, `0x1920`, and `demoset-1` with your own device values from Steps 1 and 2.
 
 ---
 
